@@ -7,3 +7,6 @@ node_modules/.bin/**
 **/*.map
 media/icon.svg
 docs/**
+scripts/**
+release.cmd
+publish-to-github.cmd

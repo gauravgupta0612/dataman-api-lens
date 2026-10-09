@@ -343,9 +343,15 @@ function activate(context) {
 
   // ---------------------------------------------------------------- projects (folders / repositories you point Routinel at)
   const projectOf = (arg) => (arg && arg.project ? arg.project : arg && arg.id ? projects.get(arg.id) : null);
-  const addFolderFlow = async (folder) => {
+  const addFolderFlow = async (folder, askName = true) => {
     try {
-      const p = await projects.addFolder(folder);
+      let name;
+      if (askName) {
+        const clean = String(folder).trim().replace(/^"|"$/g, '').replace(/[\\/]+$/, '');
+        name = await vscode.window.showInputBox({ prompt: 'Project name for ' + clean, value: require('path').basename(clean), ignoreFocusOut: true });
+        if (name === undefined) return;
+      }
+      const p = await projects.addFolder(folder, name && name.trim() ? name.trim() : undefined);
       vscode.window.showInformationMessage(`Routinel: project "${p.name}" added — ${(p.endpoints || []).length} API(s) found.`);
       return p;
     } catch (e) {

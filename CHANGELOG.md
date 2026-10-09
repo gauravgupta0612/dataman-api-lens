@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1 - 2026-10-10
+- Adding a project (folder, typed path, Git repository or Explorer "Scan Folder for APIs") now asks for a **project name** (defaults to the folder name).
+- Quoted / trailing-slash paths are accepted when typing a folder path.
+- Package metadata renamed to `routinel` (package.json / package-lock.json).
+- Added `release.cmd` and `scripts/release-notes.js` to publish a version (commit, tag, GitHub release with the .vsix).
+
 ## 1.1.0
 - Renamed to **Routinel**.
 - Projects: add any folder or clone a Git repository; its APIs are scanned, saved and kept up to date (Git pull + re-scan, export, open in new window).

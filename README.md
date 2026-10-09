@@ -119,3 +119,11 @@ Detection is static (no code is executed): each language module strips comments,
 ## Privacy
 
 Everything runs locally inside VS Code. Requests go only to the URLs you send them to; nothing is sent anywhere else.
+
+## Releasing a new version
+
+1. Bump `version` in `package.json` (and `package-lock.json`).
+2. Add a `## x.y.z - date` section at the top of `CHANGELOG.md`.
+3. Run `release.cmd` (Windows). It builds `routinel-x.y.z.vsix`, commits as **gauravgupta0612**, tags `vx.y.z`, pushes to GitHub and — if the GitHub CLI (`gh`) is installed — creates the GitHub Release with the `.vsix` and the changelog notes attached.
+
+Optional, VS Code Marketplace: create the publisher `routinel` at https://marketplace.visualstudio.com/manage, create an Azure DevOps Personal Access Token (scope *Marketplace → Manage*), then run `npx @vscode/vsce login routinel` once and `npx @vscode/vsce publish` for each version.
