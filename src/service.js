@@ -64,7 +64,7 @@ class ScanService {
       await vscode.window.withProgress({ location: { viewId: 'routinel.apis' }, title: 'Scanning for APIs…' }, async () => {
         const excludeGlob = '**/{' + cfg.exclude.join(',') + '}/**';
         let uris = await vscode.workspace.findFiles(INCLUDE, excludeGlob, cfg.maxFiles);
-        const envFiles = await vscode.workspace.findFiles('**/.env', excludeGlob, 50);
+        const envFiles = (await vscode.workspace.findFiles('**/.env', excludeGlob, 50)).concat(await vscode.workspace.findFiles('**/README.md', excludeGlob, 30));
         uris = uris.concat(envFiles).filter((u) => !this.isExcluded(u.fsPath, cfg));
         if (cfg.extraExcludeGlob) {
           const extra = new Set((await vscode.workspace.findFiles(INCLUDE, cfg.extraExcludeGlob, cfg.maxFiles)).map((u) => u.toString()));

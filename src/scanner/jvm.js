@@ -17,6 +17,9 @@ function analyze(text, file, out) {
   if (/@(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\b/.test(src) && /@Path\b/.test(src)) jaxrs(src, file, out, lineOf);
   if (/io\.micronaut/.test(src)) micronaut(src, file, out, lineOf);
   if (/io\.ktor/.test(src)) ktor(src, file, out, lineOf);
+  collectConstants(src, out, isKotlin);
+  const hasJaxrsVerbs = /@(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\b(?!\s*\()/.test(src);
+  if (!hasJaxrsVerbs && (/org\.restlet|\bextends\s+\w*Resource\b|\.rest\.Path\b/.test(src))) restlet(src, file, out, lineOf);
   // functions (for handler lookup)
   const fre = isKotlin ? /\bfun\s+(?:<[^>]*>\s*)?(?:\w+\.)?(\w+)\s*\(/g : /\b(?:public|private|protected|static|\s)[\w<>[\],\s?]*\s(\w+)\s*\([^;{]*\)\s*(?:throws[^{]+)?(?=\{)/g;
   for (const r of U.functionRanges(src, fre, true)) if (!out.functions[r.name]) out.functions[r.name] = r.body;
@@ -212,7 +215,7 @@ function jaxrs(src, file, out, lineOf) {
     const p = c.annotations.find((a) => a.name === 'Path');
     const brace = src.indexOf('{', m.index);
     const b = brace !== -1 ? U.readBalanced(src, brace, true) : null;
-    classes.push({ name: m[1], start: m.index, end: b ? b.end : src.length, prefix: p ? annPaths(p.args)[0] : '' });
+    classes.push({ name: m[1], start: m.index, end: b ? b.end : src.length, prefix: p ? annPaths(p.args)[0] : '', prefixItem: p ? pathItems(p.args)[0] : null });
   }
   const re = /@(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\b(?!\s*\()/g;
   while ((m = re.exec(src))) {
@@ -222,8 +225,10 @@ function jaxrs(src, file, out, lineOf) {
     const consumes = c.annotations.find((a) => a.name === 'Consumes');
     const sig = methodSignature(src, c.declStart);
     const cls = classes.filter((k) => k.start < m.index && m.index < k.end).pop();
+    const parts = [cls && cls.prefixItem, p ? pathItems(p.args)[0] : null].filter(Boolean);
     out.routes.push({
       method: m[1],
+      pathParts: parts.some((x) => x.expr) ? parts : undefined,
       path: U.joinPaths(cls ? cls.prefix : '', p ? annPaths(p.args)[0] : ''),
       line: lineOf(m.index),
       framework: /quarkus/.test(src) ? 'Quarkus' : 'JAX-RS',
@@ -233,6 +238,119 @@ function jaxrs(src, file, out, lineOf) {
       handler: sig ? sig.name : undefined,
       bodyMode: consumes && /MULTIPART|multipart/.test(consumes.args) ? 'formdata' : consumes && /FORM_URLENCODED|urlencoded/.test(consumes.args) ? 'urlencoded' : undefined,
     });
+  }
+}
+
+/** Path annotation values: literals and constant expressions, e.g. @Path(Resources.ITEMS) / @Path({A, "/x"}). */
+function pathItems(args) {
+  if (!args || !args.trim()) return [{ value: '' }];
+  let target = args.trim();
+  const named = /(?:^|[\s,(])(?:value|path|uri)\s*=\s*/.exec(target);
+  if (named) target = target.slice(named.index + named[0].length);
+  target = target.trim();
+  let items;
+  if (target.startsWith('{') || target.startsWith('[')) {
+    const b = U.readBalanced(target, 0);
+    items = U.splitTopLevel(b ? b.inner : target);
+  } else items = [U.splitTopLevel(target)[0] || ''];
+  return items.map((it) => {
+    const t = it.trim();
+    const lit = /^"((?:\\.|[^"\\])*)"$/.exec(t);
+    return lit ? { value: lit[1] } : { expr: t };
+  });
+}
+
+// ------------------------------------------------------------------ Restlet (ServerResource classes)
+const RESTLET_VERBS = { get: 'GET', post: 'POST', put: 'PUT', delete: 'DELETE', patch: 'PATCH', head: 'HEAD', options: 'OPTIONS' };
+
+function restletClassInfo(body) {
+  // top-level methods only (depth 0 of the class body)
+  const methods = new Map();
+  let doInit = '';
+  const re = /((?:@\w+(?:\([^)]*\))?\s*)*)(?:public|protected)\s+(?:final\s+|synchronized\s+)*(?:<[^>]*>\s*)?[\w.<>[\], ?]+?\s+(\w+)\s*\(([^)]*)\)\s*(?:throws\s+[\w.,\s]+)?\{/g;
+  let m;
+  while ((m = re.exec(body))) {
+    const open = m.index + m[0].length - 1;
+    const b = U.readBalanced(body, open, true);
+    const block = b ? body.slice(open, b.end + 1) : '';
+    if (b) re.lastIndex = b.end;
+    const ann = /@(Get|Post|Put|Delete|Patch|Options)\b/.exec(m[1] || '');
+    const verb = ann ? ann[1].toUpperCase() : RESTLET_VERBS[m[2]];
+    if (m[2] === 'doInit') doInit += block;
+    if (!verb) continue;
+    const prev = methods.get(verb) || { block: '', sigs: [] };
+    prev.block += '\n' + block;
+    prev.sigs.push(m[3]);
+    methods.set(verb, prev);
+  }
+  return { methods, doInit };
+}
+
+function restlet(src, file, out, lineOf) {
+  const clsRe = /\bclass\s+(\w+)(?:\s*<[^{]*?>)?(\s+extends\s+[\w.<>]+)?[^{]*\{/g;
+  let m;
+  while ((m = clsRe.exec(src))) {
+    const brace = m.index + m[0].length - 1;
+    const b = U.readBalanced(src, brace, true);
+    if (!b) continue;
+    const info = restletClassInfo(b.inner);
+    const base = m[2] ? m[2].replace(/\s*extends\s*/, '').trim() : '';
+    out.jvmClasses = out.jvmClasses || {};
+    out.jvmClasses[m[1]] = { base, methods: [...info.methods.entries()].map(([verb, x]) => ({ verb, block: x.block, sigs: x.sigs })), doInit: info.doInit, file, line: lineOf(m.index) };
+    const c = clusterAround(src, m.index);
+    const pathAnn = c.annotations.find((a) => a.name === 'Path');
+    if (!pathAnn) continue;
+    let verbs = [...info.methods.keys()];
+    let inferred = false;
+    if (!verbs.length) {
+      inferred = true;
+      if (/List|Collection/i.test(base)) verbs = ['GET', 'POST'];
+      else if (/Item|BeanMap/i.test(base)) verbs = ['GET', 'PUT', 'DELETE'];
+      else verbs = ['GET'];
+    }
+    for (const item of pathItems(pathAnn.args)) {
+      for (const verb of verbs) {
+        const meth = info.methods.get(verb);
+        out.routes.push({
+          method: verb,
+          path: item.value !== undefined ? item.value : '',
+          pathParts: item.expr ? [item] : undefined,
+          line: lineOf(pathAnn.start),
+          framework: 'Restlet',
+          keys: ['file:' + file],
+          block: info.doInit + (meth ? meth.block : ''),
+          beanBody: meth ? meth.sigs.some((s) => /\bBeanMap\b/.test(s)) : /POST|PUT/.test(verb),
+          handler: m[1] + (meth ? '.' + verb.toLowerCase() : '') + (inferred ? ' (inherited)' : ''),
+          restlet: true,
+          inherit: inferred ? { cls: m[1], base: base.replace(/<.*$/, '').split('.').pop(), doInit: info.doInit } : undefined,
+        });
+      }
+    }
+  }
+  // plain Restlet routers: router.attach("/items/{id}", ItemResource.class)
+  const at = /\.attach(?:Default)?\(\s*([^,()]+?)\s*,\s*(\w+)\.class\s*\)/g;
+  while ((m = at.exec(src))) {
+    const t = m[1].trim();
+    const lit = /^"((?:\\.|[^"\\])*)"$/.exec(t);
+    out.pending.push({ kind: 'restletAttach', item: lit ? { value: lit[1] } : { expr: t }, cls: m[2], line: lineOf(m.index), keys: ['file:' + file] });
+  }
+}
+
+/** String constants (static final String X = ...; interface String X = ...; Kotlin const val X = "...") for resolving @Path / keys. */
+function collectConstants(src, out, isKotlin) {
+  const heads = [];
+  const hre = /\b(?:class|interface|enum|object)\s+(\w+)/g;
+  let m;
+  while ((m = hre.exec(src))) heads.push({ idx: m.index, name: m[1] });
+  const ownerAt = (i) => {
+    let o = null;
+    for (const h of heads) if (h.idx < i) o = h.name;
+    return o;
+  };
+  out.consts = out.consts || {};
+  const re = isKotlin ? /\bconst\s+val\s+([A-Z][A-Z0-9_]*)\s*(?::\s*String\s*)?=\s*([^\n;]+)/g : /\bString\s+([A-Z][A-Z0-9_]*)\s*=\s*([^;]+);/g;
+  while ((m = re.exec(src))) {
+    (out.consts[m[1]] = out.consts[m[1]] || []).push({ cls: ownerAt(m.index), expr: m[2].trim() });
   }
 }
 
@@ -337,7 +455,47 @@ function javaField(part) {
 }
 
 // ------------------------------------------------------------------ params from blocks (Ktor)
-function extractParams(block) {
+function restletParams(block, route, g) {
+  const res = [];
+  const resolve = (e) => (g && g.resolveConst ? g.resolveConst(e) : (/^"([^"]*)"$/.exec(e.trim()) || [])[1] || null);
+  const add = (expr, where, type) => {
+    const name = resolve(expr.trim());
+    if (!name || /\s/.test(name) || res.find((p) => p.name === name && p.in === where)) return;
+    res.push({ name, in: where, type: type || 'string', required: false });
+  };
+  let m;
+  const q = /getQueryValue\(\s*([^,()]+?)\s*\)|getQuery\(\)\s*\.\s*(?:getFirstValue|getValues|getFirst|getValuesArray)\(\s*([^,()]+?)\s*[,)]/g;
+  while ((m = q.exec(block))) add(m[1] || m[2], 'query');
+  const h = /getHeaders\(\)\s*\.\s*(?:getFirstValue|getValues)\(\s*([^,()]+?)\s*[,)]/g;
+  while ((m = h.exec(block))) add(m[1], 'header');
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(route.method)) {
+    const vars = new Set();
+    const jv = /(\w+)\s*=\s*new\s+JSONObject\(\s*(?:[\w.]*\.read\(|\w+\.getText\(|entity\b|getRequestEntity|representation\b|new\s+JsonRepresentation)/g;
+    while ((m = jv.exec(block))) vars.add(m[1]);
+    const jr = /(\w+)\s*=\s*new\s+JsonRepresentation\([^)]*\)\s*\.\s*getJsonObject\(\)/g;
+    while ((m = jr.exec(block))) vars.add(m[1]);
+    const types = { String: 'string', Int: 'int', Long: 'long', Boolean: 'boolean', Double: 'double', BigDecimal: 'decimal', JSONArray: 'list<string>', JSONObject: 'object', Number: 'number' };
+    for (const v of vars) {
+      const f = new RegExp('\\b' + v + '\\s*\\.\\s*(?:get|opt)(String|Int|Long|Boolean|Double|BigDecimal|JSONArray|JSONObject|Number)?\\s*\\(\\s*([^,()]+?)\\s*[,)]', 'g');
+      while ((m = f.exec(block))) add(m[2], 'body', types[m[1]] || 'string');
+      const has = new RegExp('\\b' + v + '\\s*\\.\\s*(?:has|isNull)\\(\\s*([^,()]+?)\\s*\\)', 'g');
+      while ((m = has.exec(block))) add(m[1], 'body');
+    }
+    const fv = /(\w+)\s*=\s*new\s+Form\(/g;
+    while ((m = fv.exec(block))) {
+      const f = new RegExp('\\b' + m[1] + '\\s*\\.\\s*(?:getFirstValue|getValues)\\(\\s*([^,()]+?)\\s*[,)]', 'g');
+      let x;
+      while ((x = f.exec(block))) add(x[1], 'form');
+    }
+    if (!res.some((p) => p.in === 'body' || p.in === 'form') && (route.beanBody || /getText\(|\.read\(|entity/.test(block)) && route.method !== 'DELETE') {
+      res.push({ name: '__body__', in: 'body', type: 'object', wholeBody: true });
+    }
+  }
+  return res;
+}
+
+function extractParams(block, route, g) {
+  if (route && route.restlet) return restletParams(block || '', route, g);
   const res = [];
   if (!block) return res;
   const add = (name, where, type) => { if (!res.find((p) => p.name === name && p.in === where)) res.push({ name, in: where, type: type || 'string', required: where === 'path' }); };
@@ -354,4 +512,4 @@ function extractParams(block) {
   return res;
 }
 
-module.exports = { analyze, extractParams };
+module.exports = { analyze, extractParams, pathItems };

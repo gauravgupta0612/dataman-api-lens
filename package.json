@@ -2,7 +2,7 @@
   "name": "routinel",
   "displayName": "Routinel – API Finder & Client",
   "description": "Routinel (Route + Sentinel) auto-discovers every HTTP API in your workspace — any language, with parameters — and calls them from a built-in Postman-like client.",
-  "version": "1.1.2",
+  "version": "1.2.1",
   "publisher": "gauravgupta0612",
   "license": "MIT",
   "icon": "media/icon.png",

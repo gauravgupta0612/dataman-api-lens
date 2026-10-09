@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.1 - 2026-10-09
+- Maintenance release.
+
+## 1.2.0 - 2026-10-10
+- **Full code scan for Restlet resource classes**: classes annotated with `@Path` that extend `ServerResource` / `*Resource` and implement `get/post/put/delete` (or Restlet `@Get/@Post/...`), plus `router.attach("/path", XResource.class)`.
+- Paths written as Java constants are resolved across files: `@Path(Resources.ORDER)` where `ORDER = STORE + "/orders/{orderid}"`.
+- Parameters from resource code: `getQueryValue(...)`, `getQuery().getFirstValue(...)`, request headers, JSON body fields read with `getString/optInt/...` (constant keys resolved), `Form` fields.
+- Resources without their own verb methods inherit them from a base class found in the workspace.
+- JAX-RS `@Path` values written as constants are resolved too.
+- Local editor data (`.routinel/`, `.dataman/`) is never committed.
+- When an endpoint exists both in code and in an OpenAPI/Swagger file, they are merged into one entry (code location + documented parameters/examples).
+- Ports mentioned in README.md (e.g. localhost:8080) are used for the default environment base URL.
+
 ## 1.1.2 - 2026-10-10
 - Marketplace publisher changed to `gauravgupta0612` (extension ID is now `gauravgupta0612.routinel`).
 - Added repository, homepage and issues links to the extension manifest.

@@ -1,5 +1,8 @@
 node_modules/
 *.vsix
+*.tmp
 .routinel/
+.dataman/
 test/screenshots/
 publish-to-github.cmd
+clean-github-history.cmd

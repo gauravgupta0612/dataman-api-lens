@@ -27,7 +27,7 @@ const LANGS = [
   { id: 'php', label: 'PHP', re: /\.php$/i, mod: php },
   { id: 'ruby', label: 'Ruby', re: /\.rb$/i, mod: ruby },
   { id: 'rust', label: 'Rust', re: /\.rs$/i, mod: rust },
-  { id: 'spec', label: 'Spec', re: /\.(?:json|ya?ml|properties)$|(?:^|[\\/])\.env(?:\.\w+)?$/i, mod: specs },
+  { id: 'spec', label: 'Spec', re: /\.(?:json|ya?ml|properties)$|(?:^|[\\/])\.env(?:\.\w+)?$|(?:^|[\\/])README\.md$/i, mod: specs },
 ];
 const BY_ID = Object.fromEntries(LANGS.map((l) => [l.id, l]));
 
@@ -39,7 +39,7 @@ function languageOf(file) {
 const SIGNALS = {
   javascript: /\.(get|post|put|patch|delete|route|use|register|listen|setGlobalPrefix)\s*\(|@Controller|export\s+(async\s+)?(function|const)\s+(GET|POST|PUT|PATCH|DELETE)|export\s+default|class\s|interface\s|z\.object/,
   python: /@|path\(|url\(|add_resource|register\(|include_router|Annotated|class\s|=\s*['"]\//,
-  jvm: /@|\bget\s*\(|\broute\s*\(|class\s|record\s/,
+  jvm: /@|\bget\s*\(|\broute\s*\(|class\s|record\s|interface\s|const\s+val/,
   csharp: /\[|Map(Get|Post|Put|Delete|Patch)|class\s|record\s/,
   go: /HandleFunc|Handle\(|\.(GET|POST|PUT|DELETE|PATCH|Get|Post|Put|Delete|Patch|Any|Group|Route|Mount)\(|struct/,
   php: /Route|->(get|post|put|patch|delete)\(|class\s/,
@@ -78,11 +78,92 @@ function hash(s) {
 function resolve(analyses, opts = {}) {
   py.expandPending(analyses);
 
+  // ---- Java/Kotlin string constants (for @Path(Resources.X), getQueryValue(Consts.Y) ...) ----
+  const consts = {};
+  for (const a of analyses) for (const [k, list] of Object.entries(a.consts || {})) (consts[k] = consts[k] || []).push(...list);
+  const resolveConst = (expr, ctxCls, depth = 0) => {
+    if (expr === undefined || expr === null || depth > 20) return null;
+    let out = '';
+    for (let part of U.splitTopLevel(String(expr), '+')) {
+      part = part.trim();
+      while (/^\(.*\)$/.test(part)) part = part.slice(1, -1).trim();
+      const lit = /^"((?:\\.|[^"\\])*)"$/.exec(part);
+      if (lit) { out += lit[1]; continue; }
+      if (/^-?\d+$/.test(part)) { out += part; continue; }
+      const m = /^(?:([\w.]+)\.)?([A-Za-z_]\w*)$/.exec(part);
+      if (!m) return null;
+      const cands = consts[m[2]];
+      if (!cands || !cands.length) return null;
+      const owner = m[1] ? m[1].split('.').pop() : ctxCls;
+      const c = (owner && cands.find((x) => x.cls === owner)) || cands[0];
+      const v = resolveConst(c.expr, c.cls, depth + 1);
+      if (v === null) return null;
+      out += v;
+    }
+    return out;
+  };
+
+  // ---- Restlet router.attach("/path", XResource.class) ----
+  const jvmClasses = {};
+  for (const a of analyses) Object.assign(jvmClasses, a.jvmClasses || {});
+  for (const a of analyses) {
+    for (const p of a.pending || []) {
+      if (p.kind !== 'restletAttach') continue;
+      const c = jvmClasses[p.cls];
+      let verbs = c ? c.methods.map((x) => x.verb) : [];
+      if (!verbs.length) verbs = c && /List|Collection/i.test(c.base) ? ['GET', 'POST'] : c && /Item|BeanMap/i.test(c.base) ? ['GET', 'PUT', 'DELETE'] : ['GET'];
+      for (const verb of verbs) {
+        const meth = c && c.methods.find((x) => x.verb === verb);
+        a.routes.push({ method: verb, path: p.item.value || '', pathParts: p.item.expr ? [p.item] : undefined, line: p.line, framework: 'Restlet', keys: p.keys, block: (c ? c.doInit : '') + (meth ? meth.block : ''), restlet: true, beanBody: meth ? meth.sigs.some((s) => /BeanMap/.test(s)) : false, handler: p.cls, lang: 'jvm' });
+      }
+    }
+  }
+  // Restlet resources that declare no verb methods: take them from their base class when it is in the workspace
+  const methodsVia = (name, seen = new Set()) => {
+    const c = jvmClasses[name];
+    if (!c || seen.has(name)) return null;
+    seen.add(name);
+    if (c.methods.length) return c;
+    return methodsVia(String(c.base || '').replace(/<.*$/, '').split('.').pop(), seen);
+  };
+  for (const a of analyses) {
+    if (!a.routes.some((r) => r.inherit)) continue;
+    const done = new Set();
+    const next = [];
+    for (const r of a.routes) {
+      if (!r.inherit) { next.push(r); continue; }
+      const found = methodsVia(r.inherit.base);
+      if (!found) { next.push(r); continue; }
+      const key = r.inherit.cls + '|' + r.path + '|' + JSON.stringify(r.pathParts || '');
+      if (done.has(key)) continue;
+      done.add(key);
+      for (const mm of found.methods) {
+        next.push({ ...r, method: mm.verb, block: r.inherit.doInit + found.doInit + mm.block, beanBody: mm.sigs.some((s) => /BeanMap/.test(s)), handler: r.inherit.cls + ' → ' + r.inherit.base + '.' + mm.verb.toLowerCase(), inherit: undefined });
+      }
+    }
+    a.routes = next;
+  }
+
+  // resolve constant-based paths
+  for (const a of analyses) {
+    for (const r of a.routes) {
+      if (!r.pathParts) continue;
+      const pieces = r.pathParts.map((pp) => (pp.value !== undefined ? pp.value : resolveConst(pp.expr)));
+      if (pieces.every((x) => x !== null)) r.path = U.joinPaths(...pieces);
+      else {
+        r.path = U.joinPaths(...r.pathParts.map((pp, i) => (pieces[i] !== null ? pieces[i] : '<' + pp.expr + '>')));
+        r.summary = r.summary || 'Path constant could not be resolved: ' + r.pathParts.filter((pp, i) => pieces[i] === null).map((pp) => pp.expr).join(', ');
+      }
+      r.pathParts = undefined;
+    }
+  }
+
   // ---- global indexes ----
   const models = {};
   const functions = {};
   const mounts = [];
   const hints = { ports: [], servers: [], springContextPath: null, nestGlobalPrefix: null, constants: {} };
+  const resolveConstRef = (e) => resolveConst(e);
   for (const a of analyses) {
     for (const [k, v] of Object.entries(a.models || {})) if (!models[k] || (models[k].fields.length === 0 && v.fields.length)) models[k] = v;
     functions[a.lang] = functions[a.lang] || {};
@@ -125,13 +206,13 @@ function resolve(analyses, opts = {}) {
   for (const a of analyses) {
     for (const r of a.routes) {
       try {
-        endpoints.push(buildEndpoint(a, r, { models, functions, prefixFor, hints }));
+        endpoints.push(buildEndpoint(a, r, { models, functions, prefixFor, hints, resolveConst: resolveConstRef }));
       } catch (e) {
         // never let one odd route break the whole scan
       }
     }
   }
-  const unique = U.uniqBy(endpoints, (e) => e.method + ' ' + e.path + ' ' + e.file + ':' + e.line);
+  const unique = mergeSpecs(U.uniqBy(endpoints, (e) => e.method + ' ' + e.path + ' ' + e.file + ':' + e.line));
   const seenIds = new Set();
   for (const e of unique) {
     while (seenIds.has(e.id)) e.id += 'x';
@@ -162,7 +243,7 @@ function buildEndpoint(a, r, g) {
   // ---- params ----
   let params = [...(r.params || [])];
   const block = lookupBlock(r, g.functions);
-  if (lang && lang.mod.extractParams && (block || r.signature !== undefined)) {
+  if (lang && lang.mod.extractParams && (block || r.signature !== undefined || r.restlet)) {
     for (const p of lang.mod.extractParams(block, r, g) || []) {
       if (!params.find((x) => x.name === p.name && x.in === p.in)) params.push(p);
     }
@@ -246,6 +327,38 @@ function setPath(obj, dotted, value) {
   }
   const last = parts[parts.length - 1];
   if (!(last in o) || typeof o[last] !== 'object') o[last] = value;
+}
+
+/** When the same METHOD + path is found both in code and in an OpenAPI/Swagger file, keep the code endpoint and enrich it with the spec. */
+function mergeSpecs(list) {
+  const shape = (p) => p.toLowerCase().replace(/:\w+/g, ':').replace(/\/+$/, '') || '/';
+  const code = new Map();
+  for (const e of list) if (!e.fromSpec) {
+    const k = e.method + ' ' + shape(e.path);
+    if (!code.has(k)) code.set(k, e);
+  }
+  const out = [];
+  for (const e of list) {
+    if (!e.fromSpec || e.framework === 'Postman') { out.push(e); continue; }
+    const c = code.get(e.method + ' ' + shape(e.path));
+    if (!c) { out.push(e); continue; }
+    for (const sp of e.params) {
+      const ex = c.params.find((x) => x.in === sp.in && x.name.toLowerCase() === sp.name.toLowerCase());
+      if (ex) {
+        ex.description = ex.description || sp.description;
+        ex.example = ex.example !== undefined ? ex.example : sp.example;
+        ex.enum = ex.enum || sp.enum;
+        if (sp.type && (!ex.type || ex.type === 'string')) ex.type = sp.type;
+        ex.required = ex.required || sp.required;
+      } else if (sp.in !== 'path') c.params.push({ ...sp });
+    }
+    const emptyBody = !c.body || c.body.mode === 'none' || c.body.example === undefined || (c.body.example && typeof c.body.example === 'object' && !Object.keys(c.body.example).length);
+    if (emptyBody && e.body && e.body.mode !== 'none') c.body = e.body;
+    c.summary = c.summary && !/could not be resolved/.test(c.summary) ? c.summary : e.summary || c.summary;
+    c.tags = c.tags || e.tags;
+    c.documentedIn = e.file;
+  }
+  return out;
 }
 
 function modelName(t) {

@@ -10,3 +10,6 @@ docs/**
 scripts/**
 release.cmd
 publish-to-github.cmd
+clean-github-history.cmd
+.dataman/**
+*.tmp

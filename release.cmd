@@ -1,47 +1,62 @@
 @echo off
 REM ---------------------------------------------------------------------------
-REM  Routinel release: commit + tag + push to GitHub (and a GitHub Release with
-REM  the .vsix when the GitHub CLI "gh" is installed).
-REM  Every commit and tag is made as: gauravgupta0612 (no other author/co-author)
-REM  Before running: bump "version" in package.json and add a "## x.y.z" section
-REM  at the top of CHANGELOG.md.
+REM  Routinel - one-click release
+REM   1. asks for the new version and what changed (writes CHANGELOG.md + package.json)
+REM   2. runs the tests
+REM   3. commits as gauravgupta0612, tags vX.Y.Z and pushes to GitHub
+REM  GitHub Actions (.github/workflows/release.yml) then builds the .vsix and creates
+REM  the GitHub Release automatically (and publishes to the Marketplace if VSCE_PAT is set).
 REM ---------------------------------------------------------------------------
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
-
 where git  >nul 2>nul || (echo Git is not installed: https://git-scm.com & pause & exit /b 1)
 where node >nul 2>nul || (echo Node.js is not installed: https://nodejs.org & pause & exit /b 1)
 
-for /f "delims=" %%v in ('node -p "require('./package.json').version"') do set VER=%%v
-echo Releasing Routinel v%VER%
-node scripts\release-notes.js %VER% > "%TEMP%\routinel-notes.md" || (echo Add a "## %VER%" section to CHANGELOG.md first. & pause & exit /b 1)
-node scripts\release-notes.js %VER% --commit > "%TEMP%\routinel-commit.txt"
-type "%TEMP%\routinel-notes.md"
+for /f "delims=" %%v in ('node -p "require('./package.json').version"') do set CUR=%%v
+echo Current version: %CUR%
+echo   [Enter] = patch   or type: minor / major / an exact version (e.g. 1.4.0) / current
+set "KIND=patch"
+set /p "KIND=New version: "
+
+set "NOTES="
 echo.
+echo What changed? One line per change, empty line to finish (empty = keep CHANGELOG as it is):
+:notes
+set "LINE="
+set /p "LINE=  - "
+if not defined LINE goto notesdone
+set NOTES=!NOTES! "!LINE!"
+goto notes
+:notesdone
+
+for /f "delims=" %%v in ('node scripts\bump.js %KIND% !NOTES!') do set VER=%%v
+echo.
+node scripts\release-notes.js %VER% || (echo CHANGELOG.md has no section for %VER% & pause & exit /b 1)
+echo.
+
+echo Running tests...
+call npm test --silent || (echo Tests failed - nothing was committed. & pause & exit /b 1)
 
 git config user.name "gauravgupta0612"
 git config user.email "gauravgupta0612@users.noreply.github.com"
 git remote get-url origin >nul 2>nul || git remote add origin https://github.com/gauravgupta0612/dataman-api-lens.git
 
-echo Building routinel-%VER%.vsix ...
-call npx -y @vscode/vsce package --allow-missing-repository || (echo Packaging failed & pause & exit /b 1)
-
+git pull -q --rebase --autostash origin main
+REM never publish local editor data (saved requests, environments)
+git rm -r --cached --ignore-unmatch -q .routinel .dataman test/fixtures/.routinel test/fixtures/.dataman >nul 2>nul
 git add -A
-git diff --cached --quiet || git commit -F "%TEMP%\routinel-commit.txt"
-git tag -a v%VER% -F "%TEMP%\routinel-commit.txt" 2>nul || echo Tag v%VER% already exists - skipping tag.
+node scripts\release-notes.js %VER% --commit > "%TEMP%\routinel-commit.txt"
+git diff --cached --quiet || git commit -q -F "%TEMP%\routinel-commit.txt"
 
-echo Pushing to GitHub (sign in as gauravgupta0612 if asked) ...
+git rev-parse -q --verify "refs/tags/v%VER%" >nul && (echo Tag v%VER% already exists - choose a new version. & pause & exit /b 1)
+git tag -a v%VER% -F "%TEMP%\routinel-commit.txt"
+
+echo Pushing to GitHub (sign in as gauravgupta0612 if asked)...
 git push origin main || (echo Push failed & pause & exit /b 1)
-git push origin v%VER%
+git push origin v%VER% || (echo Tag push failed & pause & exit /b 1)
 
-where gh >nul 2>nul && (
-  gh release create v%VER% "routinel-%VER%.vsix" --repo gauravgupta0612/dataman-api-lens --title "Routinel v%VER%" --notes-file "%TEMP%\routinel-notes.md"
-) || (
-  echo.
-  echo GitHub CLI not found - create the release in the browser:
-  echo   https://github.com/gauravgupta0612/dataman-api-lens/releases/new?tag=v%VER%
-  echo   Title: Routinel v%VER%   - paste the notes above - attach routinel-%VER%.vsix
-)
 echo.
-echo Done.
+echo Done. GitHub is now building and publishing the release:
+echo   https://github.com/gauravgupta0612/dataman-api-lens/actions
+echo   https://github.com/gauravgupta0612/dataman-api-lens/releases/tag/v%VER%
 pause

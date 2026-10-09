@@ -28,7 +28,7 @@ Routinel scans your workspace, automatically discovers every HTTP endpoint **in 
 |---|---|
 | JavaScript / TypeScript | Express, Koa (koa-router), Fastify, Hono, Elysia, Restify, NestJS, Next.js (App Router `route.ts` and `pages/api`) |
 | Python | FastAPI, Flask (+ Blueprints, flask-restx, Flask-RESTful), Quart, Sanic, Litestar, Django (urls.py, class-based views), Django REST Framework (routers, ViewSets, `@action`) |
-| Java / Kotlin | Spring MVC & WebFlux (incl. functional routes), JAX-RS (Jakarta, Quarkus, Jersey, RESTEasy), Micronaut, Ktor |
+| Java / Kotlin | Spring MVC & WebFlux (incl. functional routes), JAX-RS (Jakarta, Quarkus, Jersey, RESTEasy), **Restlet** resource classes (`@Path` + `get/post/put/delete`, `router.attach`), Micronaut, Ktor — path constants such as `@Path(Resources.ITEMS)` are resolved |
 | C# | ASP.NET Core controllers (attribute routing, `[controller]`/`[action]` tokens), Minimal APIs (`MapGet`, `MapGroup`) |
 | Go | net/http (incl. Go 1.22 `"GET /items/{id}"`), gorilla/mux, Gin, Echo, Fiber, chi |
 | PHP | Laravel (routes, groups, `resource`/`apiResource`, FormRequest rules), Symfony (`#[Route]` / `@Route`), Slim, Lumen |
@@ -122,8 +122,9 @@ Everything runs locally inside VS Code. Requests go only to the URLs you send th
 
 ## Releasing a new version
 
-1. Bump `version` in `package.json` (and `package-lock.json`).
-2. Add a `## x.y.z - date` section at the top of `CHANGELOG.md`.
-3. Run `release.cmd` (Windows). It builds `routinel-x.y.z.vsix`, commits as **gauravgupta0612**, tags `vx.y.z`, pushes to GitHub and — if the GitHub CLI (`gh`) is installed — creates the GitHub Release with the `.vsix` and the changelog notes attached.
+1. Double-click `release.cmd` (Windows).
+2. Press Enter for the next patch version (or type `minor`, `major` or an exact version) and type what changed, one line per change.
+3. The script updates `package.json` and `CHANGELOG.md`, runs the tests, commits as **gauravgupta0612**, tags `vX.Y.Z` and pushes.
+4. GitHub Actions (`.github/workflows/release.yml`) then builds `routinel-X.Y.Z.vsix` and creates the GitHub Release with the changelog notes and the `.vsix` attached. If the repository secret `VSCE_PAT` (an Azure DevOps token with *Marketplace → Manage*) is set, it also publishes to the VS Code Marketplace.
 
-Optional, VS Code Marketplace: use the publisher `gauravgupta0612` at https://marketplace.visualstudio.com/manage, create an Azure DevOps Personal Access Token (scope *Marketplace → Manage*), then run `npx @vscode/vsce login gauravgupta0612` once and `npx @vscode/vsce publish` for each version.
+To re-run a release for an existing tag: GitHub → **Actions** → **Release** → **Run workflow** → enter the tag.

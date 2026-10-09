@@ -228,6 +228,7 @@ function normalizePath(p) {
   s = s.replace(/\(\?P<(\w+)>[^)]*\)/g, ':$1'); // django regex groups
   s = s.replace(/\{\*{0,2}(\w+)(?::(?:[^{}]|\{[^}]*\})*)?\??\}/g, ':$1'); // {id} {id:int} {*slug} {id?} {id:[0-9]{3}}
   s = s.replace(/<(?:\w+:)?(\w+)(?:\.\.)?>/g, ':$1'); // <int:id> <name> <path..>
+  s = s.replace(/(:\w+)\}+/g, '$1'); // tolerate typos like {name}}
   s = s.replace(/\(\.:format\)/g, '');
   s = s.replace(/:(\w+)\?/g, ':$1');
   s = s.replace(/\/\*(\w+)/g, '/:$1'); // gin  /*filepath

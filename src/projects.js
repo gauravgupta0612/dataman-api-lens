@@ -13,7 +13,7 @@ const { spawn } = require('child_process');
 const scanner = require('./scanner');
 const { DEFAULT_EXCLUDES, SKIP_FILE, TEST_FILE } = require('./service');
 
-const EXT = /\.(js|jsx|mjs|cjs|ts|tsx|mts|cts|py|java|kt|kts|cs|go|php|rb|rs|json|ya?ml|properties)$|(^|[\\/])\.env$/i;
+const EXT = /\.(js|jsx|mjs|cjs|ts|tsx|mts|cts|py|java|kt|kts|cs|go|php|rb|rs|json|ya?ml|properties)$|(^|[\\/])\.env$|^README\.md$/i;
 
 class ProjectService {
   constructor(context, output) {

@@ -1,0 +1,64 @@
+# Runs automatically when a version tag (v1.2.3) is pushed by release.cmd:
+# tests -> builds the .vsix -> creates the GitHub Release with the CHANGELOG notes and the .vsix attached
+# -> publishes to the VS Code Marketplace when the repository secret VSCE_PAT exists.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)release, e.g. v1.2.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: npm install --omit=dev --no-audit --no-fund
+
+      - name: Test
+        run: npm test
+
+      - name: Check version matches tag
+        run: |
+          V=$(node -p "require('./package.json').version")
+          if [ "v$V" != "$TAG" ]; then echo "package.json version v$V does not match tag $TAG"; exit 1; fi
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+
+      - name: Build VSIX
+        run: npx -y @vscode/vsce@3 package -o "routinel-$VERSION.vsix"
+
+      - name: Release notes from CHANGELOG.md
+        run: node scripts/release-notes.js "$VERSION" > release-notes.md
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "routinel-$VERSION.vsix" --clobber
+            gh release edit "$TAG" --title "Routinel $TAG" --notes-file release-notes.md
+          else
+            gh release create "$TAG" "routinel-$VERSION.vsix" --title "Routinel $TAG" --notes-file release-notes.md --latest
+          fi
+
+      - name: Publish to VS Code Marketplace
+        if: ${{ env.VSCE_PAT != '' }}
+        run: npx -y @vscode/vsce@3 publish --packagePath "routinel-$VERSION.vsix" -p "$VSCE_PAT"

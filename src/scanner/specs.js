@@ -19,6 +19,12 @@ function analyze(text, file, out) {
     if (m) out.hints.ports.push({ port: +m[1], source: file });
     return;
   }
+  if (/^readme\.md$/i.test(base)) {
+    const re = /(?:localhost|127\.0\.0\.1)(?:\*\*)?:(\d{2,5})|\bport\s*\**\s*(\d{4,5})\b/gi;
+    let m;
+    while ((m = re.exec(text))) out.hints.ports.push({ port: +(m[1] || m[2]), source: file });
+    return;
+  }
   if (/\.postman_collection\.json$/.test(base)) return postman(text, file, out);
   if (/\.(json|ya?ml)$/.test(base) && /["']?(openapi|swagger)["']?\s*:/.test(text.slice(0, 4000))) return openapi(text, file, out);
 }

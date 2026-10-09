@@ -71,6 +71,12 @@ function walk(d, acc = []) {
     ['GET', '/admin/stats', 'Axum', null],
     ['GET', '/pets/:petId', 'OpenAPI 3.0.0', (e) => has(e, 'query', 'verbose')],
     ['POST', '/pets', 'OpenAPI 3.0.0', (e) => e.body.example.name === 'Rex'],
+    ['GET', '/stores/:storeid/orders/:orderid', 'Restlet', (e) => has(e, 'query', 'currency') && has(e, 'query', 'expand')],
+    ['POST', '/stores/:storeid/orders/:orderid', 'Restlet', (e) => e.body.example.product === 'string' && e.body.example.quantity === 0 && !('ok' in e.body.example)],
+    ['POST', '/stores/:storeid/orders', 'Restlet', (e) => e.body.mode === 'json'],
+    ['GET', '/legacy/items/:id', 'Restlet', (e) => has(e, 'query', 'q')],
+    ['DELETE', '/legacy/items/:id', 'Restlet', null],
+    ['POST', '/ai/summary', 'Restlet', (e) => e.body.example.prompt === 'string'],
   ];
   for (const [m, p, fw, check] of expectations) {
     await test(`${fw}: ${m} ${p}`, () => {
