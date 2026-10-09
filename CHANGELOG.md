@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2 - 2026-10-10
+- Marketplace publisher changed to `gauravgupta0612` (extension ID is now `gauravgupta0612.routinel`).
+- Added repository, homepage and issues links to the extension manifest.
+
 ## 1.1.1 - 2026-10-10
 - Adding a project (folder, typed path, Git repository or Explorer "Scan Folder for APIs") now asks for a **project name** (defaults to the folder name).
 - Quoted / trailing-slash paths are accepted when typing a folder path.

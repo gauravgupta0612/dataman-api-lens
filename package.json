@@ -2,8 +2,8 @@
   "name": "routinel",
   "displayName": "Routinel – API Finder & Client",
   "description": "Routinel (Route + Sentinel) auto-discovers every HTTP API in your workspace — any language, with parameters — and calls them from a built-in Postman-like client.",
-  "version": "1.1.1",
-  "publisher": "routinel",
+  "version": "1.1.2",
+  "publisher": "gauravgupta0612",
   "license": "MIT",
   "icon": "media/icon.png",
   "engines": {
@@ -711,5 +711,13 @@
   },
   "devDependencies": {
     "playwright": "^1.48.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gauravgupta0612/dataman-api-lens.git"
+  },
+  "homepage": "https://github.com/gauravgupta0612/dataman-api-lens#readme",
+  "bugs": {
+    "url": "https://github.com/gauravgupta0612/dataman-api-lens/issues"
   }
 }
