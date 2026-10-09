@@ -1,0 +1,715 @@
+{
+  "name": "routinel",
+  "displayName": "Routinel \u2013 API Finder & Client",
+  "description": "Routinel (Route + Sentinel) auto-discovers every HTTP API in your workspace \u2014 any language, with parameters \u2014 and calls them from a built-in Postman-like client.",
+  "version": "1.1.0",
+  "publisher": "routinel",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Testing",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "api",
+    "rest",
+    "http client",
+    "postman",
+    "openapi",
+    "swagger",
+    "endpoint discovery",
+    "express",
+    "spring",
+    "fastapi",
+    "asp.net"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "routinel",
+          "title": "Routinel",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "routinel": [
+        {
+          "id": "routinel.apis",
+          "name": "Discovered APIs",
+          "icon": "media/activity.svg",
+          "contextualTitle": "Routinel"
+        },
+        {
+          "id": "routinel.collections",
+          "name": "Collections",
+          "contextualTitle": "Routinel"
+        },
+        {
+          "id": "routinel.history",
+          "name": "History",
+          "contextualTitle": "Routinel",
+          "visibility": "collapsed"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "routinel.apis",
+        "contents": "No APIs discovered yet.\nTell Routinel where your code is \u2014 a folder or a Git repository. It scans it (JavaScript/TypeScript, Python, Java/Kotlin, C#, Go, PHP, Ruby, Rust, OpenAPI) and saves it as a project.\n[$(folder-library) Add Project Folder / Repository](command:routinel.addProject)\n[$(refresh) Scan Open Workspace](command:routinel.refresh)\n[$(add) New Request](command:routinel.newRequest)\nYou can also use Routinel as a standalone HTTP client for any URL."
+      },
+      {
+        "view": "routinel.collections",
+        "contents": "Save requests into collections to reuse them (stored in .routinel/collections.json).\n[$(add) New Collection](command:routinel.newCollection)\n[$(cloud-download) Import Postman Collection](command:routinel.importPostman)"
+      },
+      {
+        "view": "routinel.history",
+        "contents": "Requests you send appear here."
+      }
+    ],
+    "commands": [
+      {
+        "command": "routinel.refresh",
+        "title": "Re-scan All (workspace + projects)",
+        "category": "Routinel",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "routinel.quickOpen",
+        "title": "Search Discovered APIs\u2026",
+        "category": "Routinel",
+        "icon": "$(search)"
+      },
+      {
+        "command": "routinel.newRequest",
+        "title": "New Request",
+        "category": "Routinel",
+        "icon": "$(add)"
+      },
+      {
+        "command": "routinel.openEndpoint",
+        "title": "Open in Request Editor",
+        "category": "Routinel",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "routinel.sendEndpoint",
+        "title": "Send Request",
+        "category": "Routinel",
+        "icon": "$(play)"
+      },
+      {
+        "command": "routinel.goToSource",
+        "title": "Go to Source",
+        "category": "Routinel",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "routinel.copyCurl",
+        "title": "Copy as cURL",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.copyUrl",
+        "title": "Copy URL",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.filter",
+        "title": "Filter APIs\u2026",
+        "category": "Routinel",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "routinel.clearFilter",
+        "title": "Clear Filter",
+        "category": "Routinel",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "routinel.groupBy",
+        "title": "Group APIs By\u2026",
+        "category": "Routinel",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "routinel.exportPostman",
+        "title": "Export Discovered APIs as Postman Collection",
+        "category": "Routinel",
+        "icon": "$(export)"
+      },
+      {
+        "command": "routinel.exportOpenApi",
+        "title": "Export Discovered APIs as OpenAPI",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.addAllToCollection",
+        "title": "Save Discovered APIs to a Collection",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.importPostman",
+        "title": "Import Postman Collection\u2026",
+        "category": "Routinel",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "routinel.exportCollection",
+        "title": "Export Collection (Postman v2.1)",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.newCollection",
+        "title": "New Collection",
+        "category": "Routinel",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "routinel.newFolder",
+        "title": "New Folder",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.renameItem",
+        "title": "Rename",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.deleteItem",
+        "title": "Delete",
+        "category": "Routinel",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "routinel.openCollectionItem",
+        "title": "Open Request",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.openHistoryItem",
+        "title": "Open Request",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.deleteHistoryItem",
+        "title": "Remove from History",
+        "category": "Routinel",
+        "icon": "$(close)"
+      },
+      {
+        "command": "routinel.clearHistory",
+        "title": "Clear History",
+        "category": "Routinel",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "routinel.selectEnvironment",
+        "title": "Select Environment",
+        "category": "Routinel",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "routinel.editEnvironments",
+        "title": "Manage Environments (base URL, auth, variables)",
+        "category": "Routinel",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "routinel.setSecret",
+        "title": "Set Secret Variable",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.deleteSecret",
+        "title": "Delete Secret Variable",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.clearCookies",
+        "title": "Clear Cookie Jar",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.showLog",
+        "title": "Show Scan Log",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.openEnvironmentsJson",
+        "title": "Open environments.json",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.addProject",
+        "title": "Add Project (folder or Git repository)\u2026",
+        "category": "Routinel",
+        "icon": "$(folder-library)"
+      },
+      {
+        "command": "routinel.addProjectFolder",
+        "title": "Scan Folder for APIs (add as Routinel project)",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.cloneProject",
+        "title": "Clone Git Repository and Scan\u2026",
+        "category": "Routinel",
+        "icon": "$(repo-clone)"
+      },
+      {
+        "command": "routinel.rescanProject",
+        "title": "Re-scan",
+        "category": "Routinel",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "routinel.pullProject",
+        "title": "Git Pull and Re-scan",
+        "category": "Routinel",
+        "icon": "$(repo-pull)"
+      },
+      {
+        "command": "routinel.renameProject",
+        "title": "Rename Project",
+        "category": "Routinel"
+      },
+      {
+        "command": "routinel.removeProject",
+        "title": "Remove Project",
+        "category": "Routinel",
+        "icon": "$(close)"
+      },
+      {
+        "command": "routinel.openProjectFolder",
+        "title": "Open Project in New Window",
+        "category": "Routinel",
+        "icon": "$(empty-window)"
+      },
+      {
+        "command": "routinel.revealProject",
+        "title": "Reveal in File Explorer",
+        "category": "Routinel"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "routinel.addProject",
+          "when": "view == routinel.apis",
+          "group": "navigation@0"
+        },
+        {
+          "command": "routinel.newRequest",
+          "when": "view == routinel.apis",
+          "group": "navigation@0"
+        },
+        {
+          "command": "routinel.filter",
+          "when": "view == routinel.apis",
+          "group": "navigation@1"
+        },
+        {
+          "command": "routinel.clearFilter",
+          "when": "view == routinel.apis && routinel.filtered",
+          "group": "navigation@2"
+        },
+        {
+          "command": "routinel.groupBy",
+          "when": "view == routinel.apis",
+          "group": "navigation@3"
+        },
+        {
+          "command": "routinel.refresh",
+          "when": "view == routinel.apis",
+          "group": "navigation@4"
+        },
+        {
+          "command": "routinel.quickOpen",
+          "when": "view == routinel.apis",
+          "group": "1_main@1"
+        },
+        {
+          "command": "routinel.selectEnvironment",
+          "when": "view == routinel.apis",
+          "group": "1_main@2"
+        },
+        {
+          "command": "routinel.exportPostman",
+          "when": "view == routinel.apis",
+          "group": "2_export@1"
+        },
+        {
+          "command": "routinel.exportOpenApi",
+          "when": "view == routinel.apis",
+          "group": "2_export@2"
+        },
+        {
+          "command": "routinel.addAllToCollection",
+          "when": "view == routinel.apis",
+          "group": "2_export@3"
+        },
+        {
+          "command": "routinel.showLog",
+          "when": "view == routinel.apis",
+          "group": "3_misc@1"
+        },
+        {
+          "command": "routinel.newCollection",
+          "when": "view == routinel.collections",
+          "group": "navigation@1"
+        },
+        {
+          "command": "routinel.importPostman",
+          "when": "view == routinel.collections",
+          "group": "navigation@2"
+        },
+        {
+          "command": "routinel.clearHistory",
+          "when": "view == routinel.history",
+          "group": "navigation@1"
+        },
+        {
+          "command": "routinel.editEnvironments",
+          "when": "view == routinel.apis",
+          "group": "1_main@3"
+        },
+        {
+          "command": "routinel.cloneProject",
+          "when": "view == routinel.apis",
+          "group": "1_main@4"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "routinel.sendEndpoint",
+          "when": "view == routinel.apis && viewItem == endpoint",
+          "group": "inline@1"
+        },
+        {
+          "command": "routinel.goToSource",
+          "when": "view == routinel.apis && viewItem == endpoint",
+          "group": "inline@2"
+        },
+        {
+          "command": "routinel.openEndpoint",
+          "when": "view == routinel.apis && viewItem == endpoint",
+          "group": "1_open@1"
+        },
+        {
+          "command": "routinel.sendEndpoint",
+          "when": "view == routinel.apis && viewItem == endpoint",
+          "group": "1_open@2"
+        },
+        {
+          "command": "routinel.goToSource",
+          "when": "view == routinel.apis && viewItem == endpoint",
+          "group": "1_open@3"
+        },
+        {
+          "command": "routinel.copyCurl",
+          "when": "view == routinel.apis && viewItem == endpoint",
+          "group": "2_copy@1"
+        },
+        {
+          "command": "routinel.copyUrl",
+          "when": "view == routinel.apis && viewItem == endpoint",
+          "group": "2_copy@2"
+        },
+        {
+          "command": "routinel.newFolder",
+          "when": "view == routinel.collections && viewItem =~ /^(collection|collectionFolder)$/",
+          "group": "1_edit@1"
+        },
+        {
+          "command": "routinel.renameItem",
+          "when": "view == routinel.collections",
+          "group": "1_edit@2"
+        },
+        {
+          "command": "routinel.exportCollection",
+          "when": "view == routinel.collections && viewItem == collection",
+          "group": "2_export@1"
+        },
+        {
+          "command": "routinel.copyCurl",
+          "when": "view == routinel.collections && viewItem == collectionRequest",
+          "group": "2_export@2"
+        },
+        {
+          "command": "routinel.deleteItem",
+          "when": "view == routinel.collections",
+          "group": "9_delete@1"
+        },
+        {
+          "command": "routinel.deleteItem",
+          "when": "view == routinel.collections && viewItem == collectionRequest",
+          "group": "inline"
+        },
+        {
+          "command": "routinel.copyCurl",
+          "when": "view == routinel.history && viewItem == historyItem",
+          "group": "1_copy@1"
+        },
+        {
+          "command": "routinel.deleteHistoryItem",
+          "when": "view == routinel.history && viewItem == historyItem",
+          "group": "inline"
+        },
+        {
+          "command": "routinel.rescanProject",
+          "when": "view == routinel.apis && viewItem =~ /^(project|workspaceSource)/",
+          "group": "inline@1"
+        },
+        {
+          "command": "routinel.pullProject",
+          "when": "view == routinel.apis && viewItem == project-git",
+          "group": "inline@2"
+        },
+        {
+          "command": "routinel.rescanProject",
+          "when": "view == routinel.apis && viewItem =~ /^(project|workspaceSource)/",
+          "group": "1_scan@1"
+        },
+        {
+          "command": "routinel.pullProject",
+          "when": "view == routinel.apis && viewItem == project-git",
+          "group": "1_scan@2"
+        },
+        {
+          "command": "routinel.addAllToCollection",
+          "when": "view == routinel.apis && viewItem =~ /^(project|workspaceSource)/",
+          "group": "2_export@1"
+        },
+        {
+          "command": "routinel.exportPostman",
+          "when": "view == routinel.apis && viewItem =~ /^(project|workspaceSource)/",
+          "group": "2_export@2"
+        },
+        {
+          "command": "routinel.exportOpenApi",
+          "when": "view == routinel.apis && viewItem =~ /^(project|workspaceSource)/",
+          "group": "2_export@3"
+        },
+        {
+          "command": "routinel.openProjectFolder",
+          "when": "view == routinel.apis && viewItem =~ /^project/",
+          "group": "3_open@1"
+        },
+        {
+          "command": "routinel.revealProject",
+          "when": "view == routinel.apis && viewItem =~ /^project/",
+          "group": "3_open@2"
+        },
+        {
+          "command": "routinel.renameProject",
+          "when": "view == routinel.apis && viewItem =~ /^project/",
+          "group": "4_edit@1"
+        },
+        {
+          "command": "routinel.removeProject",
+          "when": "view == routinel.apis && viewItem =~ /^project/",
+          "group": "4_edit@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "routinel.openCollectionItem",
+          "when": "false"
+        },
+        {
+          "command": "routinel.openHistoryItem",
+          "when": "false"
+        },
+        {
+          "command": "routinel.deleteHistoryItem",
+          "when": "false"
+        },
+        {
+          "command": "routinel.newFolder",
+          "when": "false"
+        },
+        {
+          "command": "routinel.renameItem",
+          "when": "false"
+        },
+        {
+          "command": "routinel.deleteItem",
+          "when": "false"
+        },
+        {
+          "command": "routinel.clearFilter",
+          "when": "routinel.filtered"
+        },
+        {
+          "command": "routinel.rescanProject",
+          "when": "false"
+        },
+        {
+          "command": "routinel.pullProject",
+          "when": "false"
+        },
+        {
+          "command": "routinel.renameProject",
+          "when": "false"
+        },
+        {
+          "command": "routinel.removeProject",
+          "when": "false"
+        },
+        {
+          "command": "routinel.openProjectFolder",
+          "when": "false"
+        },
+        {
+          "command": "routinel.revealProject",
+          "when": "false"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "routinel.addProjectFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "z_routinel@1"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "routinel.quickOpen",
+        "key": "ctrl+alt+a",
+        "mac": "cmd+alt+a"
+      },
+      {
+        "command": "routinel.newRequest",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n",
+        "when": "!editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Routinel",
+      "properties": {
+        "routinel.scan.onStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Scan the workspace for APIs when VS Code starts."
+        },
+        "routinel.scan.autoRescan": {
+          "type": "boolean",
+          "default": true,
+          "description": "Re-scan changed files automatically when they are saved/created."
+        },
+        "routinel.scan.includeTests": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also scan test files and folders (test/, __tests__, *_test.go, *.spec.ts \u2026)."
+        },
+        "routinel.scan.excludeFolders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra folder names to skip (node_modules, dist, target, bin, obj, venv\u2026 are always skipped)."
+        },
+        "routinel.scan.exclude": {
+          "type": "string",
+          "default": "",
+          "description": "Optional extra glob of files to exclude, e.g. **/legacy/**"
+        },
+        "routinel.scan.maxFiles": {
+          "type": "number",
+          "default": 20000,
+          "description": "Maximum number of files to scan."
+        },
+        "routinel.scan.maxFileSizeKB": {
+          "type": "number",
+          "default": 768,
+          "description": "Skip files bigger than this (KB)."
+        },
+        "routinel.groupBy": {
+          "type": "string",
+          "enum": [
+            "file",
+            "framework",
+            "language",
+            "resource",
+            "method",
+            "none"
+          ],
+          "default": "file",
+          "description": "Default grouping of the Discovered APIs view."
+        },
+        "routinel.codeLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a \u25b6 Send / cURL CodeLens above every detected route in the source code."
+        },
+        "routinel.http.timeoutMs": {
+          "type": "number",
+          "default": 30000,
+          "description": "Request timeout in milliseconds."
+        },
+        "routinel.http.rejectUnauthorized": {
+          "type": "boolean",
+          "default": true,
+          "description": "Verify TLS certificates. Disable to call servers with self-signed certificates (e.g. local or internal test servers)."
+        },
+        "routinel.http.followRedirects": {
+          "type": "boolean",
+          "default": true,
+          "description": "Follow HTTP redirects automatically."
+        },
+        "routinel.http.cookieJar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep cookies returned by servers and send them back on later requests (per host, in memory)."
+        },
+        "routinel.response.wordWrap": {
+          "type": "boolean",
+          "default": true,
+          "description": "Wrap long lines in the response viewer."
+        },
+        "routinel.scan.workspace": {
+          "type": "boolean",
+          "default": true,
+          "description": "Scan the folder(s) currently open in VS Code. Turn off to only see APIs from the project folders / repositories you added."
+        },
+        "routinel.projects.paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Folders that are always scanned and shown as Routinel projects (e.g. C:\\src\\orders-service). You can also add them with the 'Add Project' button."
+        },
+        "routinel.projects.cloneFolder": {
+          "type": "string",
+          "default": "",
+          "description": "Default parent folder for repositories cloned with 'Clone Git Repository'. Empty = ask every time."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "node test/run-tests.js",
+    "test:e2e": "node test/e2e.js",
+    "package": "npx @vscode/vsce package --allow-missing-repository"
+  },
+  "dependencies": {
+    "js-yaml": "4.1.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.2"
+  }
+}

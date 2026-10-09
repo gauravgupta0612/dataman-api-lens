@@ -1,0 +1,9 @@
+test/**
+.vscode/**
+.routinel/**
+*.vsix
+node_modules/playwright*/**
+node_modules/.bin/**
+**/*.map
+media/icon.svg
+docs/**

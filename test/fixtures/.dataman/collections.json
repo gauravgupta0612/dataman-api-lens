@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "collections": [
+    {
+      "id": "00cf6a88f5fecfea",
+      "name": "fixtures",
+      "items": [
+        {
+          "id": "281786fc60ff4675",
+          "type": "request",
+          "name": "New Request",
+          "request": {
+            "id": "8bc8fce3360592a9",
+            "name": "New Request",
+            "method": "GET",
+            "url": "http://10.5.6.232:5265/about",
+            "params": [],
+            "pathVars": [],
+            "headers": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "enabled": true,
+                "description": ""
+              }
+            ],
+            "auth": {
+              "type": "basic"
+            },
+            "body": {
+              "mode": "xml",
+              "raw": "",
+              "urlencoded": [],
+              "formdata": []
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

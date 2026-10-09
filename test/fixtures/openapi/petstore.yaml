@@ -1,0 +1,28 @@
+openapi: 3.0.0
+servers:
+  - url: http://localhost:7070/v2
+paths:
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/Verbose'
+  /pets:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Pet' }
+components:
+  parameters:
+    Verbose: { name: verbose, in: query, schema: { type: boolean } }
+  schemas:
+    Pet:
+      type: object
+      properties:
+        name: { type: string, example: Rex }
+        tag: { type: string }

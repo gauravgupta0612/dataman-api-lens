@@ -1,0 +1,13 @@
+{
+  "active": "Local",
+  "environments": [
+    {
+      "name": "Local",
+      "variables": {
+        "baseUrl": "http://localhost:3000",
+        "token": ""
+      }
+    }
+  ],
+  "globals": {}
+}

@@ -1,0 +1,3 @@
+# DataMan API Lens
+# environments.local.json holds machine-specific values and is not shared
+environments.local.json

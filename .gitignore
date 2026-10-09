@@ -1,0 +1,5 @@
+node_modules/
+*.vsix
+.routinel/
+test/screenshots/
+publish-to-github.cmd
