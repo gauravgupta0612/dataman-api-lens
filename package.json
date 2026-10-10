@@ -1,7 +1,7 @@
 {
   "name": "routinel",
-  "displayName": "Routinel \u2013 API Finder & Client",
-  "description": "Routinel (Route + Sentinel) auto-discovers every HTTP API in your workspace \u2014 any language, with parameters \u2014 and calls them from a built-in Postman-like client.",
+  "displayName": "Routinel – API Finder & Client",
+  "description": "Routinel (Route + Sentinel) auto-discovers every HTTP API in your workspace — any language, with parameters — and calls them from a built-in Postman-like client.",
   "version": "1.3.0",
   "publisher": "gauravgupta0612",
   "license": "MIT",
@@ -65,7 +65,7 @@
     "viewsWelcome": [
       {
         "view": "routinel.apis",
-        "contents": "No APIs discovered yet.\nTell Routinel where your code is \u2014 a folder or a Git repository. It scans it (JavaScript/TypeScript, Python, Java/Kotlin, C#, Go, PHP, Ruby, Rust, OpenAPI) and saves it as a project.\n[$(folder-library) Add Project Folder / Repository](command:routinel.addProject)\n[$(refresh) Scan Open Workspace](command:routinel.refresh)\n[$(add) New Request](command:routinel.newRequest)\nYou can also use Routinel as a standalone HTTP client for any URL."
+        "contents": "No APIs discovered yet.\nTell Routinel where your code is — a folder or a Git repository. It scans it (JavaScript/TypeScript, Python, Java/Kotlin, C#, Go, PHP, Ruby, Rust, OpenAPI) and saves it as a project.\n[$(folder-library) Add Project Folder / Repository](command:routinel.addProject)\n[$(refresh) Scan Open Workspace](command:routinel.refresh)\n[$(add) New Request](command:routinel.newRequest)\nYou can also use Routinel as a standalone HTTP client for any URL."
       },
       {
         "view": "routinel.collections",
@@ -85,7 +85,7 @@
       },
       {
         "command": "routinel.quickOpen",
-        "title": "Search Discovered APIs\u2026",
+        "title": "Search Discovered APIs…",
         "category": "Routinel",
         "icon": "$(search)"
       },
@@ -125,7 +125,7 @@
       },
       {
         "command": "routinel.filter",
-        "title": "Filter APIs\u2026",
+        "title": "Filter APIs…",
         "category": "Routinel",
         "icon": "$(filter)"
       },
@@ -137,7 +137,7 @@
       },
       {
         "command": "routinel.groupBy",
-        "title": "Group APIs By\u2026",
+        "title": "Group APIs By…",
         "category": "Routinel",
         "icon": "$(list-tree)"
       },
@@ -159,7 +159,7 @@
       },
       {
         "command": "routinel.importPostman",
-        "title": "Import Postman Collection\u2026",
+        "title": "Import Postman Collection…",
         "category": "Routinel",
         "icon": "$(cloud-download)"
       },
@@ -251,7 +251,7 @@
       },
       {
         "command": "routinel.addProject",
-        "title": "Add Project (folder or Git repository)\u2026",
+        "title": "Add Project (folder or Git repository)…",
         "category": "Routinel",
         "icon": "$(folder-library)"
       },
@@ -262,7 +262,7 @@
       },
       {
         "command": "routinel.cloneProject",
-        "title": "Clone Git Repository and Scan\u2026",
+        "title": "Clone Git Repository and Scan…",
         "category": "Routinel",
         "icon": "$(repo-clone)"
       },
@@ -325,7 +325,7 @@
       },
       {
         "command": "routinel.exportDocs",
-        "title": "Export API Documentation (HTML / Markdown)\u2026",
+        "title": "Export API Documentation (HTML / Markdown)…",
         "category": "Routinel"
       }
     ],
@@ -685,7 +685,7 @@
         "routinel.scan.includeTests": {
           "type": "boolean",
           "default": false,
-          "description": "Also scan test files and folders (test/, __tests__, *_test.go, *.spec.ts \u2026)."
+          "description": "Also scan test files and folders (test/, __tests__, *_test.go, *.spec.ts …)."
         },
         "routinel.scan.excludeFolders": {
           "type": "array",
@@ -693,7 +693,7 @@
             "type": "string"
           },
           "default": [],
-          "description": "Extra folder names to skip (node_modules, dist, target, bin, obj, venv\u2026 are always skipped)."
+          "description": "Extra folder names to skip (node_modules, dist, target, bin, obj, venv… are always skipped)."
         },
         "routinel.scan.exclude": {
           "type": "string",
@@ -726,7 +726,7 @@
         "routinel.codeLens.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Show a \u25b6 Send / cURL CodeLens above every detected route in the source code."
+          "description": "Show a ▶ Send / cURL CodeLens above every detected route in the source code."
         },
         "routinel.http.timeoutMs": {
           "type": "number",
