@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0 - 2026-10-10
+- **Mock server**: *Start Mock Server* serves every discovered API locally (default http://localhost:4010) and adds a "Mock" environment. Responses come from saved mocks, then OpenAPI response examples, then responses generated from the request models (POST 201 + id, GET item/list, PUT/PATCH merge, DELETE 204). CORS enabled, optional latency, request log.
+- **Save as mock**: one click in the response viewer turns a real response into the mock for that endpoint (`.routinel/mocks.json`, with templates such as `{{params.id}}`, `{{query.page}}`, `{{body.name}}`, `{{$guid}}`).
+- **API documentation**: *Open API Documentation* shows a searchable page of all endpoints (parameters, request body, example response, cURL, source location) with Try it / Source buttons; export it as a self-contained HTML page or Markdown.
+- OpenAPI/Swagger response examples are now read and used by the mock server and the documentation.
+
 ## 1.2.1 - 2026-10-09
 - Maintenance release.
 

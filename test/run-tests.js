@@ -117,6 +117,60 @@ function walk(d, acc = []) {
     assert.ok(doc.paths['/v1/orders/{id}'].get.parameters.find((p) => p.name === 'id' && p.in === 'path'));
   });
 
+  console.log('Mock server & docs');
+  {
+    const { MockServer } = require('../src/mock');
+    const docs = require('../src/docs');
+    const saved = { 'GET /v1/orders/:id': { status: 200, body: { id: '{{params.id}}', verbose: '{{query.verbose}}', note: 'saved' } } };
+    const mock = new MockServer({ getEndpoints: () => res.endpoints, getMocks: () => saved });
+    const port = await mock.start(0);
+    const base = 'http://127.0.0.1:' + port;
+    const call = async (method, p, body) => {
+      const req = model.emptyRequest();
+      Object.assign(req, { method, url: base + p, body: body ? { mode: 'json', raw: JSON.stringify(body) } : { mode: 'none' } });
+      const r = await client.execute(client.prepare(req, {}), {});
+      return { status: r.status, body: r.body ? JSON.parse(r.body) : null, source: (r.headers.find(([k]) => /x-routinel-mock/i.test(k)) || [])[1] };
+    };
+    await test('mock: OpenAPI documented response', async () => {
+      const r = await call('GET', '/pets/7');
+      assert.strictEqual(r.status, 200);
+      assert.strictEqual(r.body.name, 'Rex');
+      assert.strictEqual(r.source, 'spec');
+    });
+    await test('mock: generated POST echoes body with id (201)', async () => {
+      const r = await call('POST', '/svc/api/v1/users', { name: 'Ann' });
+      assert.strictEqual(r.status, 201);
+      assert.strictEqual(r.body.name, 'Ann');
+      assert.strictEqual(r.body.id, 1);
+    });
+    await test('mock: generated GET item uses model shape + path id', async () => {
+      const r = await call('GET', '/api/Products/42');
+      assert.strictEqual(r.status, 200);
+      assert.strictEqual(r.body.id, 42);
+    });
+    await test('mock: saved mock with templates', async () => {
+      const r = await call('GET', '/v1/orders/99?verbose=yes');
+      assert.deepStrictEqual(r.body, { id: 99, verbose: 'yes', note: 'saved' });
+      assert.strictEqual(r.source, 'saved');
+    });
+    await test('mock: DELETE 204, unknown 404, wrong method 405', async () => {
+      assert.strictEqual((await call('DELETE', '/api/v1/photos/3')).status, 204);
+      assert.strictEqual((await call('GET', '/nope/here')).status, 404);
+      assert.strictEqual((await call('PATCH', '/health')).status, 405);
+    });
+    await mock.stop();
+    await test('docs: HTML and Markdown contain every endpoint', () => {
+      const sources = [{ name: 'Fixtures', endpoints: res.endpoints, root: path.join(__dirname, 'fixtures') }];
+      const html = docs.renderHtml(sources, { title: 'Fixtures API', baseUrl: 'http://localhost:8080' });
+      const md = docs.renderMarkdown(sources, { title: 'Fixtures API' });
+      for (const e of res.endpoints) {
+        assert.ok(html.includes(e.path.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')) || html.includes(e.path.replace(/:(\w+)/g, '<em>:$1</em>')), 'html missing ' + e.path);
+        assert.ok(md.includes('`' + e.path + '`'), 'md missing ' + e.path);
+      }
+      assert.ok(html.includes('curl -X POST'));
+    });
+  }
+
   console.log('HTTP client');
   const server = http.createServer((req, res) => {
     let body = '';

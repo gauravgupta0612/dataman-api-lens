@@ -10,6 +10,8 @@ const { ScanService } = require('./src/service');
 const { Store } = require('./src/store');
 const { ProjectService } = require('./src/projects');
 const { EnvPanel } = require('./src/envPanel');
+const { MockServer } = require('./src/mock');
+const { DocsPanel } = require('./src/docsPanel');
 const { PanelManager, openSource } = require('./src/panel');
 const { ApiTreeProvider, CollectionTreeProvider, HistoryTreeProvider, EndpointCodeLensProvider } = require('./src/trees');
 const model = require('./src/model');
@@ -481,7 +483,115 @@ function activate(context) {
     if (cfg.get('scan.onStartup', true)) projects.rescanAll();
   });
 
-  return { getEndpoints: () => service.endpoints, getAllEndpoints: allEndpoints, projects };
+  // ---------------------------------------------------------------- sources (workspace / projects) for mock + docs
+  const sourceList = () => apiTree.sources().filter((s) => s.endpoints.length);
+  const pickSource = async (arg, purpose) => {
+    if (arg && arg.kind === 'source') return { key: arg.id, name: arg.name, get: () => (apiTree.sources().find((s) => s.id === arg.id) || { endpoints: [] }).endpoints, root: arg.project ? arg.project.root : undefined };
+    const list = sourceList();
+    if (!list.length) {
+      vscode.window.showInformationMessage('Routinel: no APIs discovered yet — add a project or open a workspace first.');
+      return null;
+    }
+    if (list.length === 1) return { key: list[0].id, name: list[0].name, get: () => (apiTree.sources().find((s) => s.id === list[0].id) || { endpoints: [] }).endpoints, root: list[0].project ? list[0].project.root : undefined };
+    const items = [{ label: '$(globe) All APIs', description: `${list.reduce((n, s) => n + s.endpoints.length, 0)} endpoints`, id: '__all__' }, ...list.map((s) => ({ label: (s.project ? '$(folder-library) ' : '$(root-folder) ') + s.name, description: `${s.endpoints.length} endpoints`, id: s.id }))];
+    const pick = await vscode.window.showQuickPick(items, { placeHolder: purpose });
+    if (!pick) return null;
+    if (pick.id === '__all__') return { key: '__all__', name: 'All APIs', get: () => sourceList().flatMap((s) => s.endpoints), all: true };
+    const s = list.find((x) => x.id === pick.id);
+    return { key: s.id, name: s.name, get: () => (apiTree.sources().find((x) => x.id === s.id) || { endpoints: [] }).endpoints, root: s.project ? s.project.root : undefined };
+  };
+
+  // ---------------------------------------------------------------- mock server
+  let mock = null;
+  let mockSource = null;
+  let mockCache = {};
+  const reloadMocks = async () => { mockCache = await store.getMocks(); };
+  store.onDidChange((w) => { if (w === 'mocks') reloadMocks(); });
+  const sbMock = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 48);
+  sbMock.command = 'routinel.stopMock';
+  context.subscriptions.push(sbMock, { dispose: () => mock && mock.stop() });
+  reg('routinel.startMock', async (arg) => {
+    if (mock && mock.running) {
+      const again = await vscode.window.showInformationMessage(`Routinel mock server is already running on port ${mock.port} (${mockSource.name}).`, 'Restart with another source', 'Stop');
+      if (again === 'Stop') return vscode.commands.executeCommand('routinel.stopMock');
+      if (!again) return;
+      await mock.stop();
+    }
+    const src = await pickSource(arg, 'Which APIs should the mock server serve?');
+    if (!src) return;
+    const cfg = vscode.workspace.getConfiguration('routinel');
+    await reloadMocks();
+    mock = new MockServer({ getEndpoints: src.get, getMocks: () => mockCache, log: (l) => output.appendLine('[mock] ' + l), delayMs: cfg.get('mock.delayMs', 0) });
+    try {
+      const port = await mock.start(cfg.get('mock.port', 4010), cfg.get('mock.host', '127.0.0.1'));
+      mockSource = src;
+      const url = `http://localhost:${port}`;
+      sbMock.text = `$(server-process) Mock :${port}`;
+      sbMock.tooltip = `Routinel mock server — ${src.name} (${src.get().length} endpoints). Click to stop.`;
+      sbMock.show();
+      // a "Mock" environment pointing at the server
+      const envs = await store.getEnvironments();
+      let env = envs.environments.find((e) => e.name === 'Mock');
+      if (!env) {
+        env = { name: 'Mock', variables: { baseUrl: url }, auth: { type: 'none' } };
+        envs.environments.push(env);
+      } else env.variables.baseUrl = url;
+      await store.saveEnvironments(envs);
+      const act = await vscode.window.showInformationMessage(`Routinel mock server running at ${url} — ${src.get().length} endpoints from ${src.name}.`, 'Use "Mock" environment', 'Open docs', 'Show log');
+      if (act === 'Use "Mock" environment') await store.setActiveEnvironment('Mock');
+      if (act === 'Open docs') vscode.commands.executeCommand('routinel.openDocs', arg);
+      if (act === 'Show log') output.show(true);
+    } catch (e) {
+      mock = null;
+      vscode.window.showErrorMessage('Routinel: ' + e.message);
+    }
+  });
+  reg('routinel.stopMock', async () => {
+    if (!mock) return vscode.window.showInformationMessage('Routinel: the mock server is not running.');
+    await mock.stop();
+    output.appendLine(`[mock] stopped after ${mock.hits} request(s)`);
+    mock = null;
+    sbMock.hide();
+    vscode.window.setStatusBarMessage('$(check) Routinel mock server stopped', 2500);
+  });
+  reg('routinel.editMocks', async () => {
+    const uri = await store.ensureMocksFile();
+    await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(uri), { preview: false });
+  });
+
+  // ---------------------------------------------------------------- API documentation
+  const docsCtx = {
+    store,
+    service,
+    openEndpoint: (id) => vscode.commands.executeCommand('routinel.openEndpoint', id),
+    goToSource: (id) => vscode.commands.executeCommand('routinel.goToSource', id),
+    baseUrl: async () => (await store.getVariables()).vars.baseUrl || '',
+  };
+  const sourcesFor = (src) => () => {
+    if (src.all) return sourceList().map((s) => ({ name: s.name, endpoints: s.endpoints, root: s.project ? s.project.root : undefined }));
+    return [{ name: src.name, endpoints: src.get(), root: src.root }];
+  };
+  reg('routinel.openDocs', async (arg) => {
+    const src = await pickSource(arg, 'Generate documentation for…');
+    if (src) DocsPanel.show(docsCtx, src.key, src.name, sourcesFor(src));
+  });
+  reg('routinel.exportDocs', async (arg) => {
+    const src = await pickSource(arg, 'Export documentation for…');
+    if (!src) return;
+    const fmt = await vscode.window.showQuickPick([{ label: 'HTML page', description: 'self-contained, opens in any browser', v: 'html' }, { label: 'Markdown', description: 'for README / wiki / Confluence', v: 'md' }], { placeHolder: 'Format' });
+    if (!fmt) return;
+    const docs = require('./src/docs');
+    const name = src.name.replace(/[^\w.-]+/g, '_') + (fmt.v === 'md' ? '-api.md' : '-api.html');
+    const uri = await vscode.window.showSaveDialog({ defaultUri: defaultUri(name), filters: fmt.v === 'md' ? { Markdown: ['md'] } : { HTML: ['html'] } });
+    if (!uri) return;
+    const opts = { title: src.name + ' — API Documentation', baseUrl: await docsCtx.baseUrl(), mocks: await store.getMocks(), roots: (vscode.workspace.workspaceFolders || []).map((f) => f.uri.fsPath) };
+    const text = fmt.v === 'md' ? docs.renderMarkdown(sourcesFor(src)(), opts) : docs.renderHtml(sourcesFor(src)(), opts);
+    await vscode.workspace.fs.writeFile(uri, Buffer.from(text, 'utf8'));
+    const open = await vscode.window.showInformationMessage(`Routinel: documentation written (${sourcesFor(src)().reduce((n, s) => n + s.endpoints.length, 0)} endpoints).`, 'Open');
+    if (open) fmt.v === 'md' ? vscode.window.showTextDocument(uri) : vscode.env.openExternal(uri);
+  });
+
+  return { getEndpoints: () => service.endpoints, getAllEndpoints: allEndpoints, projects, getMock: () => mock };
 }
 
 function deactivate() {}

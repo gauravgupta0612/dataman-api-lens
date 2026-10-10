@@ -13,3 +13,4 @@ publish-to-github.cmd
 clean-github-history.cmd
 .dataman/**
 *.tmp
+publish-marketplace.cmd

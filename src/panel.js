@@ -176,6 +176,20 @@ class RequestPanel {
         await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.Beside, preview: true });
         break;
       }
+      case 'saveMock': {
+        const req = this.request || {};
+        const ep = req.source && req.source.endpointId ? this.manager.service.get(req.source.endpointId) : null;
+        let p = ep ? ep.path : String(req.url || '').replace(/^\{\{[^}]+\}\}/, '').replace(/^[a-z]+:\/\/[^/]+/i, '').split('?')[0] || '/';
+        const key = (ep ? ep.method : String(req.method || 'GET').toUpperCase()) + ' ' + p;
+        let body = msg.body;
+        if (/json/.test(msg.contentType || '')) {
+          try { body = JSON.parse(msg.body); } catch (e) { /* keep text */ }
+        }
+        await this.manager.store.saveMock(key, { status: msg.status, contentType: msg.contentType || 'application/json', body, savedAt: new Date().toISOString() });
+        vscode.window.setStatusBarMessage(`$(check) Saved as mock for ${key}`, 3000);
+        this.post({ type: 'toast', text: 'Saved as mock: ' + key + ' — the Routinel mock server now returns this response.' });
+        break;
+      }
       case 'saveResponse': {
         const uri = await vscode.window.showSaveDialog({ saveLabel: 'Save response', defaultUri: msg.suggestedName ? vscode.Uri.joinPath(vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders[0].uri : vscode.Uri.file(require('os').homedir()), msg.suggestedName) : undefined });
         if (uri) {

@@ -332,6 +332,32 @@ class Store {
     await this.saveCollections(data);
   }
 
+  // ---------------------------------------------------------------- mocks (saved mock responses)
+  async getMocks() {
+    const data = await this.readJson('mocks.json', { version: 1, mocks: {} });
+    return data && data.mocks ? data.mocks : {};
+  }
+
+  async saveMock(key, mock) {
+    const data = await this.readJson('mocks.json', { version: 1, mocks: {} });
+    data.mocks = data.mocks || {};
+    data.mocks[key] = mock;
+    await this.writeJson('mocks.json', data);
+    this._onDidChange.fire('mocks');
+  }
+
+  async ensureMocksFile() {
+    const data = await this.readJson('mocks.json', null);
+    if (!data) {
+      await this.writeJson('mocks.json', {
+        version: 1,
+        help: 'Key = "METHOD /path" exactly as shown in Routinel. Templates: {{params.id}} {{query.page}} {{body.name}} {{headers.x-tenant}} {{$guid}} {{$timestamp}} {{$isoTimestamp}} {{$randomInt}}',
+        mocks: { 'GET /example/:id': { status: 200, delayMs: 0, headers: { 'X-Example': 'yes' }, body: { id: '{{params.id}}', name: 'Example', createdAt: '{{$isoTimestamp}}' } } },
+      });
+    }
+    return this.fileUri('mocks.json');
+  }
+
   // ---------------------------------------------------------------- history
   getHistory() {
     return this.context.workspaceState.get(HISTORY_KEY, []);

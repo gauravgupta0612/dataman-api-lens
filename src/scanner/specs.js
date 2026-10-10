@@ -147,6 +147,7 @@ function openapi(text, file, out) {
         keys: ['file:' + file],
         params,
         bodyExample: body,
+        response: responseOf(op, deref, isV2),
         bodyMode,
         handler: op.operationId,
         summary: op.summary || op.description,
@@ -155,6 +156,30 @@ function openapi(text, file, out) {
       });
     }
   }
+}
+
+/** First success response (2xx, else default) with an example body. */
+function responseOf(op, deref, isV2) {
+  const rs = op.responses || {};
+  const code = Object.keys(rs).find((k) => /^2\d\d$/.test(k)) || (rs.default ? 'default' : Object.keys(rs)[0]);
+  if (!code) return undefined;
+  const r = deref(rs[code]) || {};
+  const status = /^\d+$/.test(code) ? +code : 200;
+  let ex;
+  let contentType = 'application/json';
+  if (isV2) {
+    if (r.examples && r.examples['application/json'] !== undefined) ex = r.examples['application/json'];
+    else if (r.schema) ex = example(deref(r.schema), deref, 0);
+  } else {
+    const content = r.content || {};
+    const key = Object.keys(content).find((k) => /json/.test(k)) || Object.keys(content)[0];
+    if (key) {
+      contentType = key;
+      const c = content[key] || {};
+      ex = c.example !== undefined ? c.example : c.examples ? (deref(Object.values(c.examples)[0]) || {}).value : c.schema ? example(deref(c.schema), deref, 0) : undefined;
+    }
+  }
+  return { status, description: r.description, contentType, example: ex };
 }
 
 function example(schema, deref, depth) {

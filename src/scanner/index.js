@@ -315,6 +315,7 @@ function buildEndpoint(a, r, g) {
     fromSpec: !!r.spec,
     params: U.uniqBy(cleanParams, (p) => p.in + ':' + p.name),
     body: { mode, example: mode === 'json' || mode === 'text' ? example : undefined },
+    response: r.response,
   };
 }
 
@@ -356,6 +357,7 @@ function mergeSpecs(list) {
     if (emptyBody && e.body && e.body.mode !== 'none') c.body = e.body;
     c.summary = c.summary && !/could not be resolved/.test(c.summary) ? c.summary : e.summary || c.summary;
     c.tags = c.tags || e.tags;
+    c.response = c.response || e.response;
     c.documentedIn = e.file;
   }
   return out;

@@ -11,6 +11,12 @@ paths:
           required: true
           schema: { type: integer }
         - $ref: '#/components/parameters/Verbose'
+      responses:
+        '200':
+          description: The pet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
   /pets:
     post:
       requestBody:

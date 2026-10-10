@@ -56,6 +56,12 @@ You can also right-click any folder in the Explorer → **Scan Folder for APIs**
 - **Authorization**: No Auth, **Basic Auth (username / password)**, Bearer Token or API Key. Every request whose Auth tab is **Inherit from environment** (the default) uses it — switch environment to call the same APIs as another user or on another server.
 - **Variables** table – tick **Secret** for passwords/tokens. Passwords, tokens, API-key values and secret variables are stored in the OS keychain (VS Code SecretStorage), never in `environments.json`.
 
+## Mock server & API documentation
+
+- **Routinel: Start Mock Server** (right-click a project, or the `…` menu of *Discovered APIs*) starts a local server (`routinel.mock.port`, default `4010`) that answers every discovered endpoint, and creates a **Mock** environment so requests can be switched to it. Responses come from, in order: a saved mock → the OpenAPI response example → a response generated from the request models. Click the `Mock :4010` status bar item to stop it; every call is logged in the *Routinel* output.
+- **Save as mock** in the response viewer stores a real response as the mock of that endpoint in `.routinel/mocks.json`. Edit it with **Routinel: Edit Saved Mock Responses**; values can use `{{params.id}}`, `{{query.page}}`, `{{body.name}}`, `{{headers.x-tenant}}`, `{{$guid}}`, `{{$timestamp}}`, `{{$isoTimestamp}}`, `{{$randomInt}}`, and each mock can set `status`, `headers` and `delayMs`.
+- **Routinel: Open API Documentation** opens a searchable documentation page — endpoints grouped by resource or tag, parameters, request body, example response, cURL and source location — with *Try it* and *Source* buttons. **Save HTML** / **Save Markdown** (or *Export API Documentation*) write a standalone page for your team, wiki or repository.
+
 ## Getting started
 
 1. Install the extension (see below) and open a project folder.

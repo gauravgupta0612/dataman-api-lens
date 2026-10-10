@@ -94,7 +94,7 @@ const vscode = {
   window: {
     createOutputChannel: () => ({ appendLine: (s) => state.messages.push(s), show() {}, dispose() {} }),
     createTreeView: (id, opts) => { state.treeViews[id] = opts.treeDataProvider; return { dispose() {}, description: '', badge: undefined }; },
-    createStatusBarItem: () => ({ show() {}, dispose() {}, text: '' }),
+    createStatusBarItem: () => ({ show() {}, hide() {}, dispose() {}, text: '' }),
     withProgress: async (o, fn) => fn({ report() {} }, { onCancellationRequested() {} }),
     createWebviewPanel: makeWebviewPanel,
     showQuickPick: async (items) => { const a = state.quickPickAnswers.shift(); return typeof a === 'function' ? a(items) : a; },

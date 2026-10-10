@@ -624,6 +624,7 @@
       if (info.json) tools.appendChild(h('button', { class: 'ghost', title: 'Save a value from this response into an environment variable', onclick: () => { S.showExtract = !S.showExtract; renderResponse(); } }, '{{ }} Save to variable'));
       if (!res.isBinary) tools.appendChild(h('button', { class: 'ghost', title: 'Copy body', onclick: () => post({ type: 'copy', text: info.json && S.resView === 'pretty' ? JSON.stringify(info.json, null, 2) : res.body }) }, 'Copy'));
       if (!res.isBinary) tools.appendChild(h('button', { class: 'ghost', title: 'Open the body in an editor tab', onclick: () => post({ type: 'openInEditor', content: info.json ? JSON.stringify(info.json, null, 2) : res.body, language: info.json ? 'json' : info.isXml ? 'xml' : info.isHtml ? 'html' : 'plaintext' }) }, 'Open in editor'));
+      if (!res.isBinary) tools.appendChild(h('button', { class: 'ghost', title: 'Use this response in the Routinel mock server for this endpoint', onclick: () => post({ type: 'saveMock', status: res.status, body: res.body, contentType: res.contentType }) }, 'Save as mock'));
       tools.appendChild(h('button', { class: 'ghost', title: 'Save body to a file', onclick: () => post({ type: 'saveResponse', body: res.body, isBinary: res.isBinary, suggestedName: suggestName(res, info) }) }, 'Save'));
       body.appendChild(tools);
       if (S.showExtract && info.json) body.appendChild(extractForm(info.json));

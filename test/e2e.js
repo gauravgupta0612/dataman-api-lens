@@ -184,6 +184,7 @@ const THEME = `:root{--vscode-foreground:#cccccc;--vscode-editor-background:#1e1
   // ---- projects: a folder OUTSIDE the workspace + a Git repository ----
   const extDir = fs.mkdtempSync(path.join(os.tmpdir(), 'routinel-proj-'));
   fs.cpSync(path.join(__dirname, 'fixtures', 'spring'), path.join(extDir, 'orders-service'), { recursive: true });
+  state.inputAnswers.push('orders-service');
   await state.commands.get('routinel.addProjectFolder')(path.join(extDir, 'orders-service'));
   const { execSync } = require('child_process');
   const repoSrc = path.join(extDir, 'billing-src');
@@ -206,6 +207,30 @@ const THEME = `:root{--vscode-foreground:#cccccc;--vscode-editor-background:#1e1
   const projEp = saved.projects[0].endpoints[0];
   await state.commands.get('routinel.openEndpoint')(projEp.id);
   console.log('opened project endpoint in editor:', state.panels[state.panels.length - 1].title);
+
+  // ---- mock server + API documentation ----
+  state.quickPickAnswers.push((items) => items.find((i) => i.id === '__all__'));
+  await state.commands.get('routinel.startMock')();
+  const mk = api.getMock();
+  console.log('mock running:', mk && mk.running, 'port', mk && mk.port);
+  const mres = await new Promise((resolve) => http.get('http://127.0.0.1:' + mk.port + '/pets/5', (r) => { let b = ''; r.on('data', (c) => (b += c)); r.on('end', () => resolve({ status: r.statusCode, body: b, src: r.headers['x-routinel-mock'] })); }));
+  console.log('mock GET /pets/5 →', mres.status, mres.src, mres.body.replace(/\s+/g, ' '));
+  assert.strictEqual(mres.status, 200);
+  const envM = JSON.parse(fs.readFileSync(envFile, 'utf8'));
+  assert.ok(envM.environments.some((e) => e.name === 'Mock'));
+  await state.commands.get('routinel.stopMock')();
+  state.quickPickAnswers.push((items) => items.find((i) => i.id === '__all__'));
+  await state.commands.get('routinel.openDocs')();
+  await new Promise((r) => setTimeout(r, 300));
+  const docPanel = state.panels[state.panels.length - 1];
+  const page4 = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  page4.on('pageerror', (e) => { console.error('PAGE ERROR (docs)', e); process.exitCode = 1; });
+  await page4.setContent(docPanel.webview.html);
+  await page4.waitForSelector('.ep');
+  console.log('docs sections:', await page4.$$eval('section.ep', (x) => x.length));
+  await page4.screenshot({ path: path.join(OUT, '9-api-docs.png') });
+  await page4.fill('#q', 'orders');
+  await page4.screenshot({ path: path.join(OUT, '10-api-docs-search.png') });
 
   await browser.close();
   server.close();
